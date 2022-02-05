@@ -11,6 +11,7 @@
 # Student side autograding was added by Brad Miller, Nick Hay, and
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
 
+#TODO: What does this file have to do with anything here? take it somewhere else
 
 import search
 import random

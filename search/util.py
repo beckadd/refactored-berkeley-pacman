@@ -33,6 +33,8 @@ import heapq, random
 
 class FixedRandom:
     def __init__(self):
+
+        # TODO: this is unnecessary - we can just generate random numbers with a set seed.
         fixedState = (3, (2147483648, 507801126, 683453281, 310439348, 2597246090, \
             2209084787, 2267831527, 979920060, 3098657677, 37650879, 807947081, 3974896263, \
             881243242, 3100634921, 1334775171, 3965168385, 746264660, 4074750168, 500078808, \
@@ -129,6 +131,8 @@ class FixedRandom:
 """
  Data structures useful for implementing SearchAgents
 """
+
+# TODO: refactor Stack/Queue/PQ as inherited from a protocol.
 
 class Stack:
     "A container with a last-in-first-out (LIFO) queuing policy."
@@ -231,6 +235,8 @@ def manhattanDistance( xy1, xy2 ):
 
   The search project should not need anything below this line.
 """
+
+## TODO: Genuinely unnecessary - this can be removed
 
 class Counter(dict):
     """
@@ -445,6 +451,8 @@ class Counter(dict):
             addend[key] = -1 * y[key]
         return addend
 
+## TODO: prefer raise: NotImplementedError() - more pythoning and more understandable
+
 def raiseNotDefined():
     fileName = inspect.stack()[1][1]
     line = inspect.stack()[1][2]
@@ -453,6 +461,7 @@ def raiseNotDefined():
     print("*** Method not implemented: %s at line %s of %s" % (method, line, fileName))
     sys.exit(1)
 
+## TODO: reimplement in NumPy - this is easy and much faster that way
 def normalize(vectorOrCounter):
     """
     normalize a vector or counter by dividing each value by the sum of all values
@@ -471,6 +480,8 @@ def normalize(vectorOrCounter):
         s = float(sum(vector))
         if s == 0: return vector
         return [el / s for el in vector]
+
+# TODO: All of these probabilistic functions have better implementations in NumPy and also random lib
 
 def nSample(distribution, values, n):
     if sum(distribution) != 1:
@@ -541,6 +552,7 @@ def nearestPoint( pos ):
     grid_col = int( current_col + 0.5 )
     return ( grid_row, grid_col )
 
+# TODO: NumPy here again
 def sign( x ):
     """
     Returns 1 or -1 depending on the sign of x
@@ -549,6 +561,8 @@ def sign( x ):
         return 1
     else:
         return -1
+
+# TODO: NumPy!
 
 def arrayInvert(array):
     """
@@ -559,6 +573,8 @@ def arrayInvert(array):
         for inner in range(len(outer)):
             result[inner].append(outer[inner])
     return result
+
+# TODO: NumPy, would you believe
 
 def matrixAsList( matrix, value = True ):
     """
@@ -572,6 +588,7 @@ def matrixAsList( matrix, value = True ):
                 cells.append( ( row, col ) )
     return cells
 
+# TODO: what is this and where is it used.
 def lookup(name, namespace):
     """
     Get a method or class from any imported module from its name.

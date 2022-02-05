@@ -505,7 +505,7 @@ class GameStateData:
         self._eaten = [False for a in self.agentStates]
 
 try:
-    import boinc
+    import boinc #TODO: what is this? Answer: some berkeley mess
     _BOINC_ENABLED = True
 except:
     _BOINC_ENABLED = False
