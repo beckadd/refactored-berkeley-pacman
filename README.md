@@ -8,4 +8,7 @@ There are a few high-level goals I have with this project.
 
 1. 1-click dev environment setup with VS Code.
 2. Fully-typed classes.
-3. (Still developing these objectives.)
+3. Integrate the problem statements into the code.
+4. Intuitive TODO markers for locations student code is required.
+5. Refactor code to be DRY! (Because it definitely isn't right now!)
+6. Provide a pytest suite to better accommodate student testing (this autograder.py thing is a hot mess, and it hardly runs).
