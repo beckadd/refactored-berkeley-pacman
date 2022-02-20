@@ -20,6 +20,11 @@
 # John DeNero (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
 # For more info, see http://inst.eecs.berkeley.edu/~cs188/sp09/pacman.html
 
+from __future__ import annotations
+from dataclasses import dataclass
+from enum import Enum
+
+import numpy as np
 from util import *
 import time, os
 import traceback
@@ -28,137 +33,96 @@ import sys
 #######################
 # Parts worth reading #
 #######################
+class DIRECTION(Enum):
+    '''
+    The `DIRECTION` class defines the cardinal directions for game board. It is called as
+    an Enum, e.g. `North` is `DIRECTION.NORTH`, `East` is `DIRECTION.EAST`, etc.
 
-class Agent:
+
+    The cardinal directions are encoded as follows:
+    ```
+                     NORTH [0, 1]
+                         |
+                         |
+    WEST [-1, 0] ---  STOP [0, 0] --- EAST [1, 0]
+                         |
+                         |
+                     SOUTH [0,-1]
+    ```
+    There is an ample opportunity to add more than two dimensions to this class.
+    However, it's important to note that the rotate method is 
+    '''
+    NORTH = [0, 1]
+    SOUTH = [0, -1]
+    EAST = [1, 0]
+    WEST = [-1, 0]
+    STOP = [0, 0]
+
+
+class Direction:
     """
-    An agent must define a getAction method, but may also define the
-    following methods which will be called if they exist:
+    Direction
+    ---
 
-    def registerInitialState(self, state): # inspects the starting state
-    """
-    def __init__(self, index=0):
-        self.index = index
+    This class is used to define the direction of a game `Agent`. It
+    comes with a few useful classes to provide relative directions (such
+    as `left` or `right`) to make it easier to make actions.
 
-    def getAction(self, state):
-        """
-        The Agent will receive a GameState (from either {pacman, capture, sonar}.py) and
-        must return an action from Directions.{North, South, East, West, Stop}
-        """
-        raiseNotDefined()
+    The class comes with the "private" attribute `_current_direction`. 
+    This attribute should not be accessed directly - accessing it directly
+    will make any resultant program harder to troubleshoot and possibly 
+    broken.
 
-class Directions:
-    NORTH = 'North'
-    SOUTH = 'South'
-    EAST = 'East'
-    WEST = 'West'
-    STOP = 'Stop'
-
-    LEFT =       {NORTH: WEST,
-                   SOUTH: EAST,
-                   EAST:  NORTH,
-                   WEST:  SOUTH,
-                   STOP:  STOP}
-
-    RIGHT =      dict([(y,x) for x, y in LEFT.items()])
-
-    REVERSE = {NORTH: SOUTH,
-               SOUTH: NORTH,
-               EAST: WEST,
-               WEST: EAST,
-               STOP: STOP}
-
-class Configuration:
-    """
-    A Configuration holds the (x,y) coordinate of a character, along with its
-    traveling direction.
-
-    The convention for positions, like a graph, is that (0,0) is the lower left corner, x increases
-    horizontally and y increases vertically.  Therefore, north is the direction of increasing y, or (0,1).
+    Instead, access it through `Direction.current`.
     """
 
-    def __init__(self, pos, direction):
-        self.pos = pos
-        self.direction = direction
+    __current_direction: np.ndarray
 
-    def getPosition(self):
-        return (self.pos)
+    def __init__(self, direction: DIRECTION):
+        self.__current_direction = np.array(direction.value)
 
-    def getDirection(self):
-        return self.direction
+    @property
+    def current(self):
+        return DIRECTION(list(self._current_direction))
 
-    def isInteger(self):
-        x,y = self.pos
-        return x == int(x) and y == int(y)
 
-    def __eq__(self, other):
-        if other == None: return False
-        return (self.pos == other.pos and self.direction == other.direction)
+    def __rotate(self, x: np.ndarray, theta: float) -> np.ndarray:
+        '''
+        Rotate
+        ---
 
-    def __hash__(self):
-        x = hash(self.pos)
-        y = hash(self.direction)
-        return hash(x + 13 * y)
+        Private method for rotating a given direction. Currently,
+        this is implemented in 2D, given that PacMan is played in 2D.
 
-    def __str__(self):
-        return "(x,y)="+str(self.pos)+", "+str(self.direction)
+        Rotates a directional array a given amount in radians.
 
-    def generateSuccessor(self, vector):
-        """
-        Generates a new configuration reached by translating the current
-        configuration by the action vector.  This is a low-level call and does
-        not attempt to respect the legality of the movement.
+        :x: the ndarray to rotate. This is (currently) constricted to 2-element arrays.
 
-        Actions are movement vectors.
-        """
-        x, y= self.pos
-        dx, dy = vector
-        direction = Actions.vectorToDirection(vector)
-        if direction == Directions.STOP:
-            direction = self.direction # There is no stop direction
-        return Configuration((x + dx, y+dy), direction)
+        :theta: the amount (in radians) to rotate the vector by. Positive values rotate the vector counterclockwise, whereas negative values rotate the vector clockwise.
+        '''
+        rotation_matrix = np.array(
+            [
+                [np.cos(theta), -np.sin(theta)], 
+                [np.sin(theta), np.cos(theta)]
+            ]
+        ) // 1
+        return rotation_matrix @ x
 
-class AgentState:
-    """
-    AgentStates hold the state of an agent (configuration, speed, scared, etc).
-    """
+    @property
+    def left(self) -> Direction:
+        rot = self.__rotate(self.__current_direction, theta=np.deg2rad(90))
+        return Direction(DIRECTION(list(rot)))
 
-    def __init__( self, startConfiguration, isPacman ):
-        self.start = startConfiguration
-        self.configuration = startConfiguration
-        self.isPacman = isPacman
-        self.scaredTimer = 0
-        self.numCarrying = 0
-        self.numReturned = 0
+    @property
+    def right(self) -> Direction:
+        rot = self.__rotate(self.__current_direction, theta=np.deg2rad(-90))
+        return Direction(DIRECTION(list(rot)))
+    
+    def __str__(self) -> str:
+        return str(DIRECTION(list(self.__current_direction)))
 
-    def __str__( self ):
-        if self.isPacman:
-            return "Pacman: " + str( self.configuration )
-        else:
-            return "Ghost: " + str( self.configuration )
 
-    def __eq__( self, other ):
-        if other == None:
-            return False
-        return self.configuration == other.configuration and self.scaredTimer == other.scaredTimer
-
-    def __hash__(self):
-        return hash(hash(self.configuration) + 13 * hash(self.scaredTimer))
-
-    def copy( self ):
-        state = AgentState( self.start, self.isPacman )
-        state.configuration = self.configuration
-        state.scaredTimer = self.scaredTimer
-        state.numCarrying = self.numCarrying
-        state.numReturned = self.numReturned
-        return state
-
-    def getPosition(self):
-        if self.configuration == None: return None
-        return self.configuration.getPosition()
-
-    def getDirection(self):
-        return self.configuration.getDirection()
-
+@dataclass
 class Grid:
     """
     A 2-dimensional array of objects backed by a list of lists.  Data is accessed
@@ -167,6 +131,17 @@ class Grid:
 
     The __str__ method constructs an output that is oriented like a pacman board.
     """
+    _grid: np.array
+
+    @property
+    def width(self) -> int:
+        self._grid.shape[0]
+
+    def height(self) -> int:
+        self._grid.shape[1]
+
+    def 
+
     def __init__(self, width, height, initialValue=False, bitRepresentation=None):
         if initialValue not in [False, True]: raise Exception('Grids can only contain booleans')
         self.CELLS_PER_INT = 30
@@ -284,32 +259,102 @@ def reconstituteGrid(bitRep):
 # Parts you shouldn't have to read #
 ####################################
 
+class Direction(Enum):
+    """
+    Direction
+    ---
+
+    ### For Students:
+
+    The `Direction` class defines the cardinal directions for game board. It is called as
+    an Enum, e.g. `North` is `Direction.NORTH`, `East` is `Direction.EAST`, etc.
+
+    The `Direction` class encodes absolute orientation on the board. An `Agent` keeps track of its
+    own orientation with respect to the `GameBoard`.   
+
+    ### For developers:
+
+    `Agents` use the direction class to determine the direction of an `AgentAction`. 
+
+    The cardinal directions are encoded as follows:
+    ```
+                     NORTH [0, 1]
+                         |
+                         |
+    WEST [-1, 0] ---  STOP [0, 0] --- EAST [1, 0]
+                         |
+                         |
+                     SOUTH [0,-1]
+    ```
+    
+    There is an ample opportunity to add more than two dimensions to this class. simply increase the dimensionality of the arrays.
+    """
+
+    NORTH = (0, 1)
+    SOUTH = (0, -1)
+    EAST = (1, 0)
+    WEST = (-1, 0)
+    STOP = (0, 0)
+
+class Path:
+    '''
+    Path
+    ---
+    The `Path` class is simply a list of directions that can be taken by
+    an Agent. It provides convenient display functions for troubleshooting code
+    with a text output.
+    '''
+    
+    ### Base game board representation:
+
+    __EMPTY_SPACE_BLOCK = '⬛'
+    __TRAVELED_SPACE_BLOCK = '🔹' 
+    __CURRENT_SPACE_BLOCK = ''
+
+    
+
+
+    def __str__():
+        """
+        Generate a simple path object for this class.
+        """
+        ...
+
+
+    def pprint(gameBoard):
+        """
+        `pprint()` calls the `__map_repr()` method of every `Agent` on the `GameBoard`.
+        If no `__map_repr()` is given, then `Path` will randomly select a representative
+        emoji based on a hash of the object.
+        """        
+        ...
+
 class Actions:
     """
     A collection of static methods for manipulating move actions.
     """
-    # Directions
-    _directions = {Directions.NORTH: (0, 1),
-                   Directions.SOUTH: (0, -1),
-                   Directions.EAST:  (1, 0),
-                   Directions.WEST:  (-1, 0),
-                   Directions.STOP:  (0, 0)}
+    # # Directions
+    # _directions = {Directions.NORTH: (0, 1),
+    #                Directions.SOUTH: (0, -1),
+    #                Directions.EAST:  (1, 0),
+    #                Directions.WEST:  (-1, 0),
+    #                Directions.STOP:  (0, 0)}
 
-    _directionsAsList = _directions.items()
+    # _directionsAsList = _directions.items()
 
-    TOLERANCE = .001
+    # TOLERANCE = .001
 
-    def reverseDirection(action):
-        if action == Directions.NORTH:
-            return Directions.SOUTH
-        if action == Directions.SOUTH:
-            return Directions.NORTH
-        if action == Directions.EAST:
-            return Directions.WEST
-        if action == Directions.WEST:
-            return Directions.EAST
-        return action
-    reverseDirection = staticmethod(reverseDirection)
+    # def reverseDirection(action):
+    #     if action == Directions.NORTH:
+    #         return Directions.SOUTH
+    #     if action == Directions.SOUTH:
+    #         return Directions.NORTH
+    #     if action == Directions.EAST:
+    #         return Directions.WEST
+    #     if action == Directions.WEST:
+    #         return Directions.EAST
+    #     return action
+    # reverseDirection = staticmethod(reverseDirection)
 
     def vectorToDirection(vector):
         dx, dy = vector
@@ -504,16 +549,48 @@ class GameStateData:
             self.agentStates.append( AgentState( Configuration( pos, Directions.STOP), isPacman) )
         self._eaten = [False for a in self.agentStates]
 
-try:
-    import boinc #TODO: what is this? Answer: some berkeley mess
-    _BOINC_ENABLED = True
-except:
-    _BOINC_ENABLED = False
+@dataclass
+class GameBoard:
+    '''
+    GameBoard
+    ---
+    The `GameBoard` holds all information related to the location of objects on the board,
+    as well as the shape of the grid.
+
+    The `GameBoard` is delta encoded, meaning that, similar to a git repository, the latest
+    version of the board is kept in its entirety, but only the changes that led up to that
+    most recent state are stored apart from that final state. This way, the original state 
+    of the board can be determined by "walking" the states backwards in time. 
+
+    ^^ THIS IS HARD TO IMPLEMENT :( No fun
+    '''
+    
+    __grid: np.ndarray
+
+    __past_states: ...
+
+
+    def past_state(steps=1):
+        ...
+
+    def curr_state():
+        ...
+
+
+class GameStatus(Enum):
+    WIN = 1,
+    PLAYING = 0,
+    LOSS = -1
 
 class Game:
     """
+    Game
+    ---
+    The `Game` object is the host of the Pacman game. It handles the main gameplay loop, executing actions with every frame.
     The Game manages the control flow, soliciting actions from agents.
     """
+
+    board: GameBoard
 
     def __init__( self, agents, display, rules, startingIndex=0, muteAgents=False, catchExceptions=False ):
         self.agentCrashed = False
@@ -565,6 +642,8 @@ class Game:
 
 
     def run( self ):
+        # FIXME: This is such a disgusting function, it's not even funny.
+
         """
         Main control loop for game play.
         """
