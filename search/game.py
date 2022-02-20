@@ -563,6 +563,10 @@ class GameBoard:
     of the board can be determined by "walking" the states backwards in time. 
 
     ^^ THIS IS HARD TO IMPLEMENT :( No fun
+
+    NAHHH we doing undo redo on this puppy instead - hold on to the starting positions
+    and just load up a bunch of callables; Each "round" of the game contains a dict of calls performed, keys representing the agents doing the call and values representing the function call.
+    Run the callables and then evaluate with a step function(? or perhaps something a little more clever?) to determine scores and winner
     '''
     
     __grid: np.ndarray
