@@ -22,8 +22,7 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
-from enum import Enum
-
+from enum import Enum, auto
 import numpy as np
 from util import *
 import time, os
@@ -549,52 +548,135 @@ class GameStateData:
             self.agentStates.append( AgentState( Configuration( pos, Directions.STOP), isPacman) )
         self._eaten = [False for a in self.agentStates]
 
+class GameObject(Enum):
+    WALL = auto()
+    PATHWAY = auto()
+    NEWLINE = auto()
+    FOOD = auto()
+    CAPSULE = auto()
+    PACMAN = auto()
+    GHOST = auto()
+
 @dataclass
 class GameBoard:
-    '''
+    """
     GameBoard
     ---
     The `GameBoard` holds all information related to the location of objects on the board,
     as well as the shape of the grid.
+    """
 
-    The `GameBoard` is delta encoded, meaning that, similar to a git repository, the latest
-    version of the board is kept in its entirety, but only the changes that led up to that
-    most recent state are stored apart from that final state. This way, the original state 
-    of the board can be determined by "walking" the states backwards in time. 
-
-    ^^ THIS IS HARD TO IMPLEMENT :( No fun
-
-    NAHHH we doing undo redo on this puppy instead - hold on to the starting positions
-    and just load up a bunch of callables; Each "round" of the game contains a dict of calls performed, keys representing the agents doing the call and values representing the function call.
-    Run the callables and then evaluate with a step function(? or perhaps something a little more clever?) to determine scores and winner
-    '''
-    
     __grid: np.ndarray
 
-    __past_states: ...
+    @property
+    def walls(self):
+        return self.__grid == GameObject.WALL
 
+    @property
+    def ghosts(self):
+        return self.__grid == GameObject.GHOST
 
-    def past_state(steps=1):
+    @property
+    def pacman(self):
+        return self.__grid == GameObject.PACMAN
+
+    @property
+    def food(self):
+        return self.__grid == GameObject.FOOD
+
+    @property
+    def capsules(self):
+        return self.__grid == GameObject.CAPSULE
+
+    # def __str__(self): ...
+    # TODO needs to represent a pretty little command line pacman game
+
+    # importing functions
+
+    def from_layout(path: str, **fmt_options) -> GameBoard:
+        """
+        Generates a gameboard from a `.lay` file. This is the layout system that
+        the original Berkey Pacman project used, and acts as a way to bridge the
+        refactored project with older projects that may have used the old layout system.
+
+        :f: The '.layout' file to be converted to the gameboard.
+
+        :fmt_options: A dictionary of options describing the characters used to format the `.lay` file. 
+        By default, '%' represents a wall, a space represents a pathway, and a newline character represents
+        the border of the walls.
+        """
+        fmt = {
+            GameObject.WALL: "%",
+            GameObject.PATHWAY: " ",
+            GameObject.NEWLINE: "\n",
+            GameObject.FOOD: ".",
+            GameObject.CAPSULE: "o",
+            GameObject.PACMAN: "P",
+            GameObject.GHOST: "G",
+        }
+        fmt.update(fmt_options)
+
+        # OPTIMIZE: need to figure out a numpy native way to convert this string
+        with open(path) as f:
+            array = [list(row.strip()) for row in f.readlines()]
+            raw = np.array(array)
+        grid = GameBoard.__translate(raw, fmt)
+        return GameBoard(grid)
+
+    def from_csv(path: str, delimiter=",", **fmt_options) -> GameBoard:
+        fmt = {enum: enum.value for enum in GameObject}
+        fmt.update(fmt_options)
+        raw = np.loadtxt(path, delimiter)
+        grid = GameBoard.__translate(raw, fmt)
+        return GameBoard(grid)
+
+    def __translate(raw: np.ndarray, fmt) -> np.ndarray:
+        """
+        helper method to translate an input grid
+        using provided format.
+        """
+        # nasty way of doing this...
+        # going through each of the enums and checking where
+        grid = np.zeros_like(raw, dtype="object")
+        for key, val in fmt.items():
+            grid[raw == val] = key
+        return grid
+
+    # exporting functions
+
+    def to_json(writepath: str) -> None:
         ...
 
-    def curr_state():
+    def to_csv(writepath: str) -> None:
+        ...
+
+    def to_txt(writepath: str) -> None:
         ...
 
 
 class GameStatus(Enum):
-    WIN = 1,
-    PLAYING = 0,
-    LOSS = -1
+    WIN = auto(),
+    PLAYING = auto(),
+    LOSS = auto(),
+    CRASHED = auto()
+    
 
+@dataclass
 class Game:
     """
     Game
     ---
     The `Game` object is the host of the Pacman game. It handles the main gameplay loop, executing actions with every frame.
     The Game manages the control flow, soliciting actions from agents.
+    The `Game` is implemented with a command pattern, where commands are dispatched by `Agent`s and
+    received by the `GameBoard`. delta encoded, meaning that, similar to a git repository, the latest
+    version of the board is kept in its entirety, but only the changes that led up to that
+    most recent state are stored apart from that final state. This way, the original state 
+    of the board can be determined by "walking" the states backwards in time. 
     """
 
     board: GameBoard
+    status: GameStatus
 
     def __init__( self, agents, display, rules, startingIndex=0, muteAgents=False, catchExceptions=False ):
         self.agentCrashed = False
